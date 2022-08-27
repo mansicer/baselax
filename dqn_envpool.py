@@ -7,6 +7,7 @@ import jax.numpy as jnp
 import numpy as np
 from absl import app
 from absl import flags
+from packaging import version
 from agent.dqn import DQN
 from UtilsRL.rl.buffer import TransitionReplayPool
 
@@ -135,7 +136,10 @@ def main(unused_arg):
         jax.config.update('jax_platform_name', 'cpu')
 
     train_env = envpool.make(config.env, env_type="gym", num_envs=config.num_envs)
-    eval_env = gym.make(config.env, new_step_api=False)
+    if version.parse(gym.__version__) >= version.parse("0.25.0"):
+        eval_env = gym.make(config.env, new_step_api=False)
+    else:
+        eval_env = gym.make(config.env)
 
     global_seed(config.seed)
     train_env.seed(config.seed)
