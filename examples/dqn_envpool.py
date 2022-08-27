@@ -8,10 +8,10 @@ import numpy as np
 from absl import app
 from absl import flags
 from packaging import version
-from agent.dqn import DQN
 from UtilsRL.rl.buffer import TransitionReplayPool
 
-from utils.seeding import global_seed
+from baselax.agent.dqn import DQN
+from baselax.utils.seeding import global_seed
 
 config = flags.FLAGS
 
