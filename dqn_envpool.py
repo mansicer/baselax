@@ -25,22 +25,22 @@ flags.DEFINE_integer("eval_episodes", 50, "Number of evaluation episodes.")
 flags.DEFINE_integer("evaluate_every", 2_000, "Number of episodes between evaluations.")
 
 # optimizer configs
-flags.DEFINE_float("learning_rate", 0.0001, "Optimizer learning rate.")
+flags.DEFINE_float("learning_rate", 0.0003, "Optimizer learning rate.")
 
 # network configs
 flags.DEFINE_integer("batch_size", 64, "Size of the training batch")
-flags.DEFINE_integer("replay_capacity", 5000, "Capacity of the replay buffer.")
+flags.DEFINE_integer("replay_capacity", 1_000_000, "Capacity of the replay buffer.")
 flags.DEFINE_list("hidden_units", [64, 64], "Number of network hidden units.")
 
 # RL configs
-flags.DEFINE_float("target_period", 3000, "How often to update the target net.")
+flags.DEFINE_float("target_period", 10, "How often to update the target net.")
 flags.DEFINE_float("discount_factor", 0.99, "Q-learning discount factor.")
-flags.DEFINE_float("epsilon_begin", 1., "Initial epsilon-greedy exploration.")
+flags.DEFINE_float("epsilon_begin", .5, "Initial epsilon-greedy exploration.")
 flags.DEFINE_float("epsilon_end", 0.05, "Final epsilon-greedy exploration.")
-flags.DEFINE_integer("epsilon_steps", 100_000, "Steps over which to anneal eps.")
+flags.DEFINE_integer("epsilon_steps", 2_000, "Steps over which to anneal eps.")
 
 # env configs
-flags.DEFINE_string("env", "CartPole-v0", "Name of the OpenAI Gym environment to use.")
+flags.DEFINE_string("env", "CartPole-v1", "Name of the OpenAI Gym environment to use.")
 flags.DEFINE_integer("num_envs", 20, "Number of environments to use.")
 
 
