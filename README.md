@@ -1,3 +1,5 @@
+**Status**: in development, no practical use.
+
 # Baselax (Baselines + JAX)
 
 Baselax (meaning Baselines + JAX) provides stable-baselines-style implementations of reinforcement learning (RL) algorithms with Google JAX framework, supported by the following frameworks:
