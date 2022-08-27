@@ -1,0 +1,20 @@
+# training configs
+batch_size: 64                      # Size of the training batch.
+
+# optimizer configs
+learning_rate: 0.0003               # Optimizer learning rate. 
+
+# network configs
+replay_capacity: 20000              # Capacity of the replay buffer.
+hidden_units: [64, 64]              # Number of network hidden units
+
+# RL configs
+discount_factor: 0.99               # Q-learning discount factor.
+target_period: 20                   # How many timesteps to update the target net.
+epsilon_begin: 0.95                 # Initial epsilon-greedy exploration.
+epsilon_end: 0.05                   # Final epsilon-greedy exploration.
+epsilon_steps: 5_000                # Steps over which to anneal epsilon.
+
+# env configs
+env: CartPole-v0                    # Name of the OpenAI Gym environment to use.
+num_envs: 20                        # Number of environments to use.

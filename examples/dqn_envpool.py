@@ -23,7 +23,7 @@ flags.DEFINE_bool("jitting", True, "Whether to run without jitting.")
 # training configs
 flags.DEFINE_integer("training_steps", 1_000_000, "Number of train episodes.")
 flags.DEFINE_integer("eval_episodes", 50, "Number of evaluation episodes.")
-flags.DEFINE_integer("evaluate_every", 2_000, "Number of episodes between evaluations.")
+flags.DEFINE_integer("evaluate_interval", 2_000, "Number of episodes between evaluations.")
 
 # optimizer configs
 flags.DEFINE_float("learning_rate", 0.0003, "Optimizer learning rate.")
@@ -120,7 +120,7 @@ def run_loop(
                 break
 
             # Evaluation at (1) every interval (2) first update (3) last update.
-            if training_state.step - training_state.last_eval_t >= config.evaluate_every or training_state.last_eval_t < 0 or training_state.step > config.training_steps:
+            if training_state.step - training_state.last_eval_t >= config.evaluate_interval or training_state.last_eval_t < 0 or training_state.step > config.training_steps:
                 training_state.last_eval_t = training_state.step
                 returns = evaluate(eval_environment, config.eval_episodes, agent, params, rng)
                 avg_returns = np.mean(returns)
