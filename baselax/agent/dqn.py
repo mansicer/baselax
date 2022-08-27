@@ -5,7 +5,8 @@ import types
 import collections
 import gym
 import rlax
-from utils.network import build_network
+
+from baselax.utils.network import build_network
 
 
 class DQN:
