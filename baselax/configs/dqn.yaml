@@ -14,7 +14,3 @@ target_period: 20                   # How many timesteps to update the target ne
 epsilon_begin: 0.95                 # Initial epsilon-greedy exploration.
 epsilon_end: 0.05                   # Final epsilon-greedy exploration.
 epsilon_steps: 5_000                # Steps over which to anneal epsilon.
-
-# env configs
-env: CartPole-v0                    # Name of the OpenAI Gym environment to use.
-num_envs: 20                        # Number of environments to use.

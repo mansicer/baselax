@@ -15,6 +15,7 @@ requires = [
     "gym",
     "optax",
     "rlax",
+    "pyyaml",
     "UtilsRL",
     "dm-haiku @ git+https://github.com/deepmind/dm-haiku.git",
 ]
