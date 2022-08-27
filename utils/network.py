@@ -1,7 +1,8 @@
 import haiku as hk
 from haiku import nets
+from typing import List
 
-def build_network(num_actions: int, hidden_dims: list[int] ) -> hk.Transformed:
+def build_network(num_actions: int, hidden_dims: List[int] ) -> hk.Transformed:
     """Factory for a simple MLP network for approximating Q-values."""
 
     def q(obs):
