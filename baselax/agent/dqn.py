@@ -10,13 +10,19 @@ from baselax.utils.network import build_network
 
 
 class DQN:
-    """A simple DQN agent."""
     Params = collections.namedtuple("Params", "online target")
     ActorState = collections.namedtuple("ActorState", "count")
     ActorOutput = collections.namedtuple("ActorOutput", "actions q_values")
     LearnerState = collections.namedtuple("LearnerState", "count opt_state")
 
     def __init__(self, observation_space: gym.Space, action_space: gym.Space, config: types.SimpleNamespace):
+        """Deep Q Network agent implementaion using double Q-learning.
+
+        Args:
+            observation_space (gym.Space): the observation space of the environment.
+            action_space (gym.Space): the action space of the environment.
+            config (types.SimpleNamespace): additional configuration parameters.
+        """
         self._observation_space = observation_space
         self._action_space = action_space
         epsilon_cfg = dict(
