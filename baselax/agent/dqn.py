@@ -38,7 +38,12 @@ class DQN:
         self._epsilon_by_frame = optax.polynomial_schedule(**epsilon_cfg)
 
     def jit(self):
-        # Jitting for speed.
+        """Jitting agent `actor_step` and `learner_step` methods for speeding up
+        
+        Examples:
+            >>> agent = DQN(...)
+            >>> agent.jit()
+        """
         self.actor_step = jax.jit(self.actor_step)
         self.learner_step = jax.jit(self.learner_step)
         self.actor_step_batch = jax.jit(self.actor_step_batch)

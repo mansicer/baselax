@@ -1,8 +1,7 @@
-baselax.utils package
+baselax.utils
 =====================
 
-Additional functionalities of Baselax
--------------------------------------
+`baselax.utils` module provides additional functionalities of Baselax with several separating files.
 
 baselax.utils.network module
 ----------------------------
