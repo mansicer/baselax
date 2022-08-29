@@ -2,7 +2,7 @@ baselax.utils package
 =====================
 
 Additional functionalities of Baselax
-----------
+-------------------------------------
 
 baselax.utils.network module
 ----------------------------
