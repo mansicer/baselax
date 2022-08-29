@@ -1,21 +1,13 @@
 baselax.agent package
 =====================
 
-Submodules
+RL agents implementations
 ----------
 
-baselax.agent.dqn module
+baselax.agent.DQN
 ------------------------
 
-.. automodule:: baselax.agent.dqn
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: baselax.agent
+.. autoclass:: baselax.agent.DQN
    :members:
    :undoc-members:
    :show-inheritance:

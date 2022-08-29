@@ -1,7 +1,7 @@
 baselax.utils package
 =====================
 
-Submodules
+Additional functionalities of Baselax
 ----------
 
 baselax.utils.network module
@@ -16,14 +16,6 @@ baselax.utils.seeding module
 ----------------------------
 
 .. automodule:: baselax.utils.seeding
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: baselax.utils
    :members:
    :undoc-members:
    :show-inheritance:

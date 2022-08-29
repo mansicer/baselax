@@ -1,7 +1,7 @@
 Welcome to Baselax's documentation!
 ===================================
 
-**Baselax** (**Basel**ines + j**ax**) provides stable-baselines-style implementations of reinforcement learning (RL) algorithms with Google JAX framework.
+**Baselax** (Baselines + jax) provides stable-baselines-style implementations of reinforcement learning (RL) algorithms with Google JAX framework.
 
 .. note::
 
