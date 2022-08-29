@@ -1,13 +1,18 @@
 # Configuration file for the Sphinx documentation builder.
 
+# -- Autodoc configuration
+import os
+import sys
+sys.path.insert(0, os.path.abspath('../../'))
+
 # -- Project information
 
-project = 'Lumache'
-copyright = '2021, Graziella'
-author = 'Graziella'
+project = 'Baselax'
+copyright = '2021, sicer'
+author = 'sicer'
 
-release = '0.1'
-version = '0.1.0'
+# release = '0.1'
+# version = '0.1.0'
 
 # -- General configuration
 
