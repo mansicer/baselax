@@ -4,5 +4,4 @@ API
 .. autosummary::
    :toctree: generated
 
-   baselax
-   baselax.agent
+   baselax.agent.DQN
