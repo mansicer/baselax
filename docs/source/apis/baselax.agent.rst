@@ -1,8 +1,7 @@
-baselax.agent package
+baselax.agent
 =====================
 
-RL agents implementations
--------------------------
+`baselax.agent` module provides RL agents implementations with JAX.
 
 baselax.agent.DQN
 -----------------

@@ -8,11 +8,8 @@ sys.path.insert(0, os.path.abspath('../../'))
 # -- Project information
 
 project = 'Baselax'
-copyright = '2021, sicer'
-author = 'sicer'
-
-# release = '0.1'
-# version = '0.1.0'
+copyright = '2021, The Baselax authors'
+author = 'The Baselax authors'
 
 # -- General configuration
 

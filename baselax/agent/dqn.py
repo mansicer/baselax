@@ -10,19 +10,20 @@ from baselax.utils.network import build_network
 
 
 class DQN:
+    """Deep Q Network agent implementaion using double Q-learning.
+
+    Args:
+        observation_space (gym.Space): the observation space of the environment.
+        action_space (gym.Space): the action space of the environment.
+        config (types.SimpleNamespace): additional configuration parameters.
+    """
+    
     Params = collections.namedtuple("Params", "online target")
     ActorState = collections.namedtuple("ActorState", "count")
     ActorOutput = collections.namedtuple("ActorOutput", "actions q_values")
     LearnerState = collections.namedtuple("LearnerState", "count opt_state")
 
     def __init__(self, observation_space: gym.Space, action_space: gym.Space, config: types.SimpleNamespace):
-        """Deep Q Network agent implementaion using double Q-learning.
-
-        Args:
-            observation_space (gym.Space): the observation space of the environment.
-            action_space (gym.Space): the action space of the environment.
-            config (types.SimpleNamespace): additional configuration parameters.
-        """
         self._observation_space = observation_space
         self._action_space = action_space
         epsilon_cfg = dict(
@@ -38,7 +39,12 @@ class DQN:
         self._epsilon_by_frame = optax.polynomial_schedule(**epsilon_cfg)
 
     def jit(self):
-        # Jitting for speed.
+        """Jitting agent `actor_step` and `learner_step` methods for speeding up
+        
+        Examples:
+            >>> agent = DQN(...)
+            >>> agent.jit()
+        """
         self.actor_step = jax.jit(self.actor_step)
         self.learner_step = jax.jit(self.learner_step)
         self.actor_step_batch = jax.jit(self.actor_step_batch)
