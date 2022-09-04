@@ -15,6 +15,7 @@ requires = [
     "gym",
     "optax",
     "rlax",
+    "stable-baselines3",
     "UtilsRL",
     "dm-haiku @ git+https://github.com/deepmind/dm-haiku.git",
 ]

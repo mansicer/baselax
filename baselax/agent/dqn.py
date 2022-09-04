@@ -1,99 +1,146 @@
+import gym
+import haiku
 import jax
 import jax.numpy as jnp
 import optax
-import types
-import collections
-import gym
 import rlax
 
-from baselax.utils.network import build_network
+from collections import namedtuple
+from typing import Mapping, Tuple, Union
+from .agent import BaseAgent
 
 
-class DQN:
-    """Deep Q Network agent implementaion using double Q-learning.
+class DQN(BaseAgent):
+    """The implementation of a DQN agent
 
     Args:
-        observation_space (gym.Space): the observation space of the environment.
-        action_space (gym.Space): the action space of the environment.
-        config (types.SimpleNamespace): additional configuration parameters.
+        network (haiku.Transformed): A haiku network function that takes in the observation and outputs the Q values.
+        env (gym.Env): A Gym environment for initializing the observation and action spaces.
+        learning_rate (Union[float, optax.Schedule]): A learning rate that can be a float number or an optax.Schedule object.
+        gamma (float, optional): Discounted factor. Defaults to 0.99.
+        epsilon_schedule (optax.Schedule, optional): The epsilon-greedy schedule. Defaults to optax.polynomial_schedule(init_value=0.9, end_value=0.05, power=1., transition_steps=50000).
+        target_update_interval (int, optional): The update interval of the target network. Defaults to 50.
     """
+
+    Params = namedtuple("Params", ["policy", "target"])
+    PolicyState = namedtuple("PolicyState", ["count"])
+    OptimState = namedtuple("OptimState", ["count", "opt_state"])
+    PolicyOutput = namedtuple("PolicyOutput", ["actions", "q_values", "epsilon"])
+    OptimOutput = namedtuple("OptimOutput", ["loss"])
+
+    def __init__(
+        self, 
+        network: haiku.Transformed, 
+        env: gym.Env, 
+        learning_rate: Union[float, optax.Schedule],
+        gamma: float = 0.99,
+        epsilon_schedule: optax.Schedule = optax.polynomial_schedule(init_value=0.9, end_value=0.05, power=1., transition_steps=50000),
+        target_update_interval: int = 50,
+    ): 
+        super().__init__(network, env, learning_rate)
+        self._gamma = gamma
+        self._epsilon_schedule = epsilon_schedule
+        self._target_update_interval = target_update_interval
     
-    Params = collections.namedtuple("Params", "online target")
-    ActorState = collections.namedtuple("ActorState", "count")
-    ActorOutput = collections.namedtuple("ActorOutput", "actions q_values")
-    LearnerState = collections.namedtuple("LearnerState", "count opt_state")
+    def init_params(self, rng: haiku.PRNGSequence) -> Params:
+        """Initialize the parameters for the agent
 
-    def __init__(self, observation_space: gym.Space, action_space: gym.Space, config: types.SimpleNamespace):
-        self._observation_space = observation_space
-        self._action_space = action_space
-        epsilon_cfg = dict(
-            init_value=config.epsilon_begin,
-            end_value=config.epsilon_end,
-            transition_steps=config.epsilon_steps,
-            power=1.
-        )
-        self._target_period = config.target_period
-        # Neural net and optimiser.
-        self._network = build_network(action_space.n, config.hidden_units)
-        self._optimizer = optax.adam(config.learning_rate)
-        self._epsilon_by_frame = optax.polynomial_schedule(**epsilon_cfg)
+        Args:
+            rng (haiku.PRNGSequence): the random number generator.
 
-    def jit(self):
-        """Jitting agent `actor_step` and `learner_step` methods for speeding up
-        
-        Examples:
-            >>> agent = DQN(...)
-            >>> agent.jit()
+        Returns:
+            Params: the initialized parameters.
         """
-        self.actor_step = jax.jit(self.actor_step)
-        self.learner_step = jax.jit(self.learner_step)
-        self.actor_step_batch = jax.jit(self.actor_step_batch)
-
-    def initial_params(self, key):
         sample_input = self._observation_space.sample()
         sample_input = jnp.expand_dims(sample_input, 0)
-        online_params = self._network.init(key, sample_input)
-        return DQN.Params(online_params, online_params)
+        params = self._network.init(rng, sample_input)
+        return DQN.Params(params, params)
 
-    def initial_actor_state(self):
-        actor_count = jnp.zeros((), dtype=jnp.float32)
-        return DQN.ActorState(actor_count)
+    def init_policy(self, rng: haiku.PRNGSequence) -> PolicyState:
+        """Initialize the policy state.
 
-    def initial_learner_state(self, params):
-        learner_count = jnp.zeros((), dtype=jnp.float32)
-        opt_state = self._optimizer.init(params.online)
-        return DQN.LearnerState(learner_count, opt_state)
+        Args:
+            rng (haiku.PRNGSequence): the random number generator.
 
-    def actor_step_batch(self, params, obs, actor_state, key, evaluation):
-        q = self._network.apply(params.online, obs)
-        epsilon = self._epsilon_by_frame(actor_state.count)
+        Returns:
+            PolicyState: the initialized policy state.
+        """
+        return super().init_policy(rng)
+
+    def init_optimizer(self, params: Params, rng: haiku.PRNGSequence) -> OptimState:
+        """Initialize the optimizer state.
+
+        Args:
+            params (Params): the agent parameters.
+            rng (haiku.PRNGSequence): the random number generator.
+
+        Returns:
+            OptimState: the initialized optimizer state.
+        """
+        return super().init_optimizer(params, rng)
+
+    def predict(
+        self, 
+        params: Params, 
+        policy_state: PolicyState, 
+        obs: jnp.DeviceArray, 
+        key: haiku.PRNGSequence, 
+        evaluation: bool, 
+        **kwargs
+    ) -> Tuple[PolicyOutput, PolicyState]:
+        """Select actions for the agent with given observations.
+
+        Args:
+            params (Params): the agent parameters.
+            policy_state (PolicyState): the policy state.
+            obs (jnp.DeviceArray): observations from the environment.
+            key (haiku.PRNGSequence): the random number generator that can be used for exploration.
+            evaluation (bool): whether to evaluate the policy or not.
+
+        Returns:
+            Tuple[PolicyOutput, PolicyState]: return the policy output and the updated policy state.
+        """
+        q = self._network.apply(params.policy, obs)
+        epsilon = self._epsilon_schedule(policy_state.count)
         train_fn = jax.vmap(lambda x: rlax.epsilon_greedy(epsilon).sample(key, x))
         eval_fn = jax.vmap(lambda x: rlax.greedy().sample(key, x))
         a = jax.lax.select(evaluation, eval_fn(q), train_fn(q))
-        return DQN.ActorOutput(actions=a, q_values=q), DQN.ActorState(actor_state.count + 1)
+        return DQN.PolicyOutput(actions=a, q_values=q, epsilon=epsilon), DQN.PolicyState(policy_state.count + 1)
+    
+    def update(
+        self, 
+        params: Params, 
+        optimizer_state: OptimState, 
+        data: Mapping[str, jnp.DeviceArray], **kwargs
+    ) -> Tuple[OptimOutput, Params, OptimState]:
+        """Update the agent policy with given parameters
 
-    def actor_step(self, params, obs, actor_state, key, evaluation):
-        obs = jnp.expand_dims(obs, 0)
-        q = self._network.apply(params.online, obs)[0]  # remove dummy batch
-        epsilon = self._epsilon_by_frame(actor_state.count)
-        train_a = rlax.epsilon_greedy(epsilon).sample(key, q)
-        eval_a = rlax.greedy().sample(key, q)
-        a = jax.lax.select(evaluation, eval_a, train_a)
-        return DQN.ActorOutput(actions=a, q_values=q), DQN.ActorState(actor_state.count + 1)
+        Args:
+            params (Params): the agent parameters.
+            optimizer_state (OptimState): the current optimizer state.
+            data (Mapping[str, jnp.DeviceArray]): the training data dict which may includes the observations, actions, rewards, etc.
 
-    def learner_step(self, params, data, learner_state, unused_key):
-        target_params = optax.periodic_update(params.online, params.target, learner_state.count, self._target_period)
+        Returns:
+            Tuple[OptimOutput, Params, OptimState]: return the optimizer output, updated agent parameters, and the updated optimizer state.
+        """
         obs = data['obs']
         action = data['action']
         reward = data['reward']
         next_obs = data['next_obs']
-        discounted = data['discounted']
-        dloss_dtheta = jax.grad(self._loss)(params.online, target_params, obs, action, reward, discounted, next_obs)
-        updates, opt_state = self._optimizer.update(dloss_dtheta, learner_state.opt_state)
-        online_params = optax.apply_updates(params.online, updates)
-        return (DQN.Params(online_params, target_params),
-                DQN.LearnerState(learner_state.count + 1, opt_state))
+        terminated = data['terminated']
+        discounted = (1 - terminated) * self._gamma
 
+        loss = jax.grad(self._loss)(params.policy, params.target, obs, action, reward, discounted, next_obs)
+        updates, opt_state = self._optimizer.update(loss, optimizer_state.opt_state)
+        online_params = optax.apply_updates(params.policy, updates)
+        target_params = optax.periodic_update(params.policy, params.target, optimizer_state.count, self._target_update_interval)
+
+        return (
+            DQN.OptimOutput(loss),
+            DQN.Params(online_params, target_params),
+            DQN.OptimState(optimizer_state.count + 1, opt_state)
+        )
+    
     def _loss(self, online_params, target_params, obs, action, reward, discount_t, obs_t):
         q_tm1 = self._network.apply(online_params, obs)
         q_t_val = self._network.apply(target_params, obs_t)

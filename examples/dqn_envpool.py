@@ -8,10 +8,12 @@ import numpy as np
 from absl import app
 from absl import flags
 from packaging import version
+from stable_baselines3.common.env_util import DummyVecEnv
 from UtilsRL.rl.buffer import TransitionReplayPool
 
 from baselax.agent.dqn import DQN
 from baselax.utils.seeding import global_seed
+from baselax.utils.network import mlp_network
 
 config = flags.FLAGS
 
@@ -49,13 +51,13 @@ def evaluate(eval_environment, eval_episode_num, agent, params, rng):
     returns_list = []
     for _ in range(eval_episode_num):
         obs = eval_environment.reset()
-        actor_state = agent.initial_actor_state()
+        actor_state = agent.init_policy(rng)
         returns = 0.0
         done = False
 
         while not done:
-            actor_output, actor_state = agent.actor_step(params, obs, actor_state, next(rng), evaluation=True)
-            obs, reward, done, info = eval_environment.step(int(actor_output.actions))
+            actor_output, actor_state = agent.predict(params, actor_state, obs, next(rng), evaluation=True)
+            obs, reward, done, info = eval_environment.step(np.array(actor_output.actions))
             returns += reward
         returns_list.append(returns)
 
@@ -64,14 +66,14 @@ def evaluate(eval_environment, eval_episode_num, agent, params, rng):
 
 
 def run_loop(
-    agent, train_environment, eval_environment, buffer, config):
+    agent, train_environment, eval_environment, buffer, config, max_episode_steps=500):
     """A simple run loop for examples of reinforcement learning with rlax."""
 
     # Init agent.
     rng = hk.PRNGSequence(jax.random.PRNGKey(config.seed))
-    params = agent.initial_params(next(rng))
-    learner_state = agent.initial_learner_state(params)
-    env_max_length = eval_environment.spec.max_episode_steps
+    params = agent.init_params(next(rng))
+    learner_state = agent.init_optimizer(params, next(rng))
+    env_max_length = max_episode_steps
 
     training_state = types.SimpleNamespace(step=0, episode=0, last_eval_t=-1)
     print(f"Training agent for {config.training_steps} timesteps.")
@@ -79,26 +81,25 @@ def run_loop(
 
         # Prepare agent, environment and accumulator for a new episode.
         obs = train_environment.reset()
-        actor_state = agent.initial_actor_state()
+        actor_state = agent.init_policy(next(rng))
         not_done = np.ones((config.num_envs,), dtype=jnp.bool_)
 
         while True:
 
             # Acting.
-            actor_output, actor_state = agent.actor_step_batch(params, obs, actor_state, next(rng), evaluation=False)
+            actor_output, actor_state = agent.predict(params, actor_state, obs, next(rng), evaluation=False)
 
             # Agent-environment interaction.
             action = np.array(actor_output.actions)
             next_obs, reward, done, info = train_environment.step(action)
             terminated = done * (actor_state.count < env_max_length)
-            discounted = (1 - terminated) * config.discount_factor
 
             # Save data to buffer.
             buffer.add_samples({
                 "obs": obs[not_done],
                 "action": action[not_done],
                 "reward": reward[not_done].reshape(-1, 1),
-                "discounted": discounted[not_done].reshape(-1, 1),
+                "terminated": terminated[not_done].reshape(-1, 1),
                 "next_obs": next_obs[not_done]
             })
 
@@ -111,15 +112,15 @@ def run_loop(
                 for _ in range(sample_step):
                     batch = buffer.random_batch(config.batch_size)
                     batch['reward'] = batch['reward'].reshape(-1)
-                    batch['discounted'] = batch['discounted'].reshape(-1)
-                    params, learner_state = agent.learner_step(params, batch, learner_state, next(rng))
+                    batch['terminated'] = batch['terminated'].reshape(-1)
+                    optim_output, params, learner_state = agent.update(params, learner_state, batch)
                 training_state.step += sample_step
 
             if (~not_done).all():
                 training_state.episode += config.num_envs
                 break
 
-            # Evaluation at (1) every interval (2) first update (3) last update.
+            # Evaluation at: (1) every interval (2) first update (3) last update.
             if training_state.step - training_state.last_eval_t >= config.evaluate_every or training_state.last_eval_t < 0 or training_state.step > config.training_steps:
                 training_state.last_eval_t = training_state.step
                 returns = evaluate(eval_environment, config.eval_episodes, agent, params, rng)
@@ -137,18 +138,20 @@ def main(unused_arg):
 
     train_env = envpool.make(config.env, env_type="gym", num_envs=config.num_envs)
     if version.parse(gym.__version__) >= version.parse("0.25.0"):
-        eval_env = gym.make(config.env, new_step_api=False)
+        eval_env = DummyVecEnv([lambda: gym.make(config.env, new_step_api=False)])
     else:
-        eval_env = gym.make(config.env)
+        eval_env = DummyVecEnv([lambda: gym.make(config.env)])
+    
+    max_episode_steps = gym.make(config.env).spec.max_episode_steps
 
     global_seed(config.seed)
     train_env.seed(config.seed)
     eval_env.seed(config.seed)
 
     agent = DQN(
-        observation_space=train_env.observation_space,
-        action_space=train_env.action_space,
-        config=config,
+        network=mlp_network(config.hidden_units, train_env.action_space),
+        env=train_env,
+        learning_rate=config.learning_rate,
     )
 
     buffer = TransitionReplayPool(
@@ -160,9 +163,9 @@ def main(unused_arg):
                 "shape": train_env.action_space.shape,
                 "dtype": np.int32,
             },
-            "discounted": {
+            "terminated": {
                 "shape": (1,),
-                "dtype": np.float32,
+                "dtype": np.bool_,
             }
         }
     )
@@ -175,7 +178,8 @@ def main(unused_arg):
         train_environment=train_env,
         eval_environment=eval_env,
         buffer=buffer,
-        config=config
+        config=config,
+        max_episode_steps=max_episode_steps
     )
 
     train_env.close()
