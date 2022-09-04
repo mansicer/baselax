@@ -121,7 +121,7 @@ def run_loop(
                 break
 
             # Evaluation at: (1) every interval (2) first update (3) last update.
-            if training_state.step - training_state.last_eval_t >= config.evaluate_every or training_state.last_eval_t < 0 or training_state.step > config.training_steps:
+            if training_state.step - training_state.last_eval_t >= config.evaluate_every or training_state.last_eval_t < 0 or training_state.step >= config.training_steps:
                 training_state.last_eval_t = training_state.step
                 returns = evaluate(eval_environment, config.eval_episodes, agent, params, rng)
                 avg_returns = np.mean(returns)
