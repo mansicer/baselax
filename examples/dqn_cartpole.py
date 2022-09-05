@@ -3,14 +3,13 @@ import haiku as hk
 import gym
 import envpool
 import jax
-import jax.numpy as jnp
 import numpy as np
 import nni
 import optax
 from absl import app
 from absl import flags
 from packaging import version
-from stable_baselines3.common.env_util import DummyVecEnv, SubprocVecEnv
+from stable_baselines3.common.env_util import SubprocVecEnv
 from UtilsRL.rl.buffer import TransitionReplayPool
 
 from baselax.agents import DQN
@@ -182,7 +181,7 @@ def main(unused_arg):
         config.buffer_size = nni_config.get("buffer_size", config.buffer_size)
 
     agent = DQN(
-        network=mlp_network(config.hidden_units, train_env.action_space),
+        network=mlp_network(config.hidden_units),
         env=train_env,
         learning_rate=config.learning_rate,
         discount_factor=config.discount_factor,

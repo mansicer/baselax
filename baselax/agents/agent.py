@@ -13,7 +13,7 @@ class BaseAgent(ABC):
     """An abstract BaseAgent class.
 
     Args:
-        network (Callable[[gym.Space], Callable]): the network function with a gym.Space argument as the action space.
+        network (Callable[[gym.Space], haiku.Transformed]): A network function creator that takes the action space as input and return the network function.
         env (gym.Env): a gym environment wrapper with batch input and output.
         learning_rate (Union[float, optax.Schedule]): a learning rate or learning rate schedule for the optimizer.
     """
@@ -26,11 +26,11 @@ class BaseAgent(ABC):
 
     def __init__(
         self, 
-        network: haiku.Transformed, 
+        network: Callable[[gym.Space], haiku.Transformed], 
         env: gym.Env, 
         learning_rate: Union[float, optax.Schedule]
     ):
-        self._network = network
+        self._network = network(env.action_space)
         self._observation_space = env.observation_space
         self._action_space = env.action_space
         self._optimizer = optax.adam(learning_rate)

@@ -13,13 +13,17 @@ def action_space_dim(space: gym.Space) -> int:
     else:
         raise ValueError(f"Unknown action space {space}")
 
-def mlp_network(hidden_dims: List[int], action_space: gym.Space):
+def mlp_network(hidden_dims: List[int]):
 
-    def network(obs):
-        network = hk.Sequential([
-            hk.Flatten(),
-            nets.MLP([*hidden_dims, action_space_dim(action_space)])
-        ])
-        return network(obs)
+    class Network:
+        def __init__(self, action_space: gym.Space):
+            self.output_dim = action_space_dim(action_space)
+        
+        def __call__(self, obs):
+            network = hk.Sequential([
+                hk.Flatten(),
+                nets.MLP([*hidden_dims, self.output_dim])
+            ])
+            return network(obs)
     
-    return hk.without_apply_rng(hk.transform(network))
+    return lambda action_space: hk.without_apply_rng(hk.transform(Network(action_space)))

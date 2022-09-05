@@ -6,7 +6,7 @@ import optax
 import rlax
 
 from collections import namedtuple
-from typing import Mapping, Tuple, Union
+from typing import Callable, Mapping, Tuple, Union
 from .agent import BaseAgent
 
 
@@ -14,7 +14,7 @@ class DQN(BaseAgent):
     """The implementation of a DQN agent
 
     Args:
-        network (haiku.Transformed): A haiku network function that takes in the observation and outputs the Q values.
+        network (Callable[[gym.Space], haiku.Transformed]): A network function creator that takes the action space as input and return the network function.
         env (gym.Env): A Gym environment for initializing the observation and action spaces.
         learning_rate (Union[float, optax.Schedule]): A learning rate that can be a float number or an optax.Schedule object.
         discount_factor (float, optional): The discount factor. Defaults to 0.99.
@@ -30,7 +30,7 @@ class DQN(BaseAgent):
 
     def __init__(
         self, 
-        network: haiku.Transformed, 
+        network: Callable[[gym.Space], haiku.Transformed], 
         env: gym.Env, 
         learning_rate: Union[float, optax.Schedule],
         discount_factor: float = 0.99,
