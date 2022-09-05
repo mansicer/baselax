@@ -17,7 +17,7 @@ class DQN(BaseAgent):
         network (haiku.Transformed): A haiku network function that takes in the observation and outputs the Q values.
         env (gym.Env): A Gym environment for initializing the observation and action spaces.
         learning_rate (Union[float, optax.Schedule]): A learning rate that can be a float number or an optax.Schedule object.
-        gamma (float, optional): Discounted factor. Defaults to 0.99.
+        discount_factor (float, optional): The discount factor. Defaults to 0.99.
         epsilon_schedule (optax.Schedule, optional): The epsilon-greedy schedule. Defaults to optax.polynomial_schedule(init_value=0.9, end_value=0.05, power=1., transition_steps=50000).
         target_update_interval (int, optional): The update interval of the target network. Defaults to 50.
     """
@@ -33,12 +33,12 @@ class DQN(BaseAgent):
         network: haiku.Transformed, 
         env: gym.Env, 
         learning_rate: Union[float, optax.Schedule],
-        gamma: float = 0.99,
+        discount_factor: float = 0.99,
         epsilon_schedule: optax.Schedule = optax.polynomial_schedule(init_value=0.9, end_value=0.05, power=1., transition_steps=50000),
         target_update_interval: int = 50,
     ): 
         super().__init__(network, env, learning_rate)
-        self._gamma = gamma
+        self._gamma = discount_factor
         self._epsilon_schedule = epsilon_schedule
         self._target_update_interval = target_update_interval
     

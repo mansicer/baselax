@@ -5,10 +5,12 @@ import envpool
 import jax
 import jax.numpy as jnp
 import numpy as np
+import nni
+import optax
 from absl import app
 from absl import flags
 from packaging import version
-from stable_baselines3.common.env_util import DummyVecEnv
+from stable_baselines3.common.env_util import DummyVecEnv, SubprocVecEnv
 from UtilsRL.rl.buffer import TransitionReplayPool
 
 from baselax.agent.dqn import DQN
@@ -18,51 +20,63 @@ from baselax.utils.network import mlp_network
 config = flags.FLAGS
 
 # experiment configs
-flags.DEFINE_integer("seed", 42, "Random seed.")
+flags.DEFINE_integer("seed", np.random.randint(0, 1000000), "Random seed.")
 flags.DEFINE_bool("use_gpu", True, "Whether to use GPU or not.")
 flags.DEFINE_bool("jitting", True, "Whether to run without jitting.")
+flags.DEFINE_bool("use_nni", True, "Whether to use NNI experiments or not.")
 
 # training configs
-flags.DEFINE_integer("training_steps", 1_000_000, "Number of train episodes.")
-flags.DEFINE_integer("eval_episodes", 50, "Number of evaluation episodes.")
-flags.DEFINE_integer("evaluate_every", 2_000, "Number of episodes between evaluations.")
+flags.DEFINE_integer("training_steps", 100_000, "Number of train episodes.")
+flags.DEFINE_integer("eval_episodes", 100, "Number of evaluation episodes.")
+flags.DEFINE_integer("evaluate_every", 5_000, "Number of episodes between evaluations.")
 
 # optimizer configs
 flags.DEFINE_float("learning_rate", 0.0003, "Optimizer learning rate.")
 
 # network configs
 flags.DEFINE_integer("batch_size", 64, "Size of the training batch")
-flags.DEFINE_integer("replay_capacity", 1_000_000, "Capacity of the replay buffer.")
+flags.DEFINE_integer("buffer_size", 10_000, "Capacity of the replay buffer.")
 flags.DEFINE_list("hidden_units", [64, 64], "Number of network hidden units.")
 
 # RL configs
-flags.DEFINE_float("target_period", 10, "How often to update the target net.")
+flags.DEFINE_float("target_update_interval", 10, "How often to update the target net.")
 flags.DEFINE_float("discount_factor", 0.99, "Q-learning discount factor.")
 flags.DEFINE_float("epsilon_begin", .5, "Initial epsilon-greedy exploration.")
 flags.DEFINE_float("epsilon_end", 0.05, "Final epsilon-greedy exploration.")
-flags.DEFINE_integer("epsilon_steps", 2_000, "Steps over which to anneal eps.")
+flags.DEFINE_integer("epsilon_steps", 10, "Steps over which to anneal eps.")
 
 # env configs
+flags.DEFINE_bool("use_envpool", True, "Whether to use envpool or not to create environments.")
 flags.DEFINE_string("env", "CartPole-v1", "Name of the OpenAI Gym environment to use.")
 flags.DEFINE_integer("num_envs", 20, "Number of environments to use.")
 
 
 def evaluate(eval_environment, eval_episode_num, agent, params, rng):
     returns_list = []
-    for _ in range(eval_episode_num):
+    num_envs = eval_environment.reset().shape[0]
+    eval_rounds = int(eval_episode_num // num_envs)
+    for _ in range(eval_rounds):
         obs = eval_environment.reset()
         actor_state = agent.init_policy(rng)
-        returns = 0.0
-        done = False
+        returns = np.zeros(num_envs)
+        not_done = np.ones((num_envs,), dtype=np.bool_)
 
-        while not done:
-            actor_output, actor_state = agent.predict(params, actor_state, obs, next(rng), evaluation=True)
-            obs, reward, done, info = eval_environment.step(np.array(actor_output.actions))
-            returns += reward
-        returns_list.append(returns)
+        while True:
+            # Acting.
+            actor_output, actor_state = agent.predict(params, actor_state, obs, next(rng), evaluation=False)
+
+            # Agent-environment interaction.
+            action = np.array(actor_output.actions)
+            obs, reward, done, info = eval_environment.step(action)
+            returns += reward * not_done
+
+            not_done[done] = False
+
+            if (~not_done).all():
+                returns_list.extend(returns.tolist())
+                break
 
     return returns_list
-
 
 
 def run_loop(
@@ -82,7 +96,7 @@ def run_loop(
         # Prepare agent, environment and accumulator for a new episode.
         obs = train_environment.reset()
         actor_state = agent.init_policy(next(rng))
-        not_done = np.ones((config.num_envs,), dtype=jnp.bool_)
+        not_done = np.ones((config.num_envs,), dtype=np.bool_)
 
         while True:
 
@@ -105,6 +119,7 @@ def run_loop(
 
             obs = next_obs
             sample_step = not_done.sum()
+            training_state.step += sample_step
             not_done[done] = False
 
             # Learning.
@@ -114,11 +129,6 @@ def run_loop(
                     batch['reward'] = batch['reward'].reshape(-1)
                     batch['terminated'] = batch['terminated'].reshape(-1)
                     optim_output, params, learner_state = agent.update(params, learner_state, batch)
-                training_state.step += sample_step
-
-            if (~not_done).all():
-                training_state.episode += config.num_envs
-                break
 
             # Evaluation at: (1) every interval (2) first update (3) last update.
             if training_state.step - training_state.last_eval_t >= config.evaluate_every or training_state.last_eval_t < 0 or training_state.step >= config.training_steps:
@@ -126,6 +136,17 @@ def run_loop(
                 returns = evaluate(eval_environment, config.eval_episodes, agent, params, rng)
                 avg_returns = np.mean(returns)
                 print(f"Training step {training_state.step:10d}, Episode {training_state.episode:4d}: Average returns: {avg_returns:.2f}")
+
+                if config.use_nni:
+                    nni.report_intermediate_result(avg_returns)
+
+            if training_state.step >= config.training_steps or (~not_done).all():
+                if (~not_done).all():
+                    training_state.episode += config.num_envs
+                break
+    
+    if config.use_nni:
+        nni.report_final_result(avg_returns)
 
 
 def main(unused_arg):
@@ -136,11 +157,17 @@ def main(unused_arg):
     else:
         jax.config.update('jax_platform_name', 'cpu')
 
-    train_env = envpool.make(config.env, env_type="gym", num_envs=config.num_envs)
-    if version.parse(gym.__version__) >= version.parse("0.25.0"):
-        eval_env = DummyVecEnv([lambda: gym.make(config.env, new_step_api=False)])
+    if config.use_envpool:
+        train_env = envpool.make(config.env, env_type="gym", num_envs=config.num_envs)
+        eval_env = envpool.make(config.env, env_type="gym", num_envs=config.num_envs)
     else:
-        eval_env = DummyVecEnv([lambda: gym.make(config.env)])
+        env_name = str(config.env)
+        if version.parse(gym.__version__) >= version.parse("0.25.0"):
+            train_env = SubprocVecEnv([lambda: gym.make(env_name, new_step_api=False) for _ in range(config.num_envs)])
+            eval_env = SubprocVecEnv([lambda: gym.make(env_name, new_step_api=False) for _ in range(config.num_envs)])
+        else:
+            train_env = SubprocVecEnv([lambda: gym.make(env_name) for _ in range(config.num_envs)])
+            eval_env = SubprocVecEnv([lambda: gym.make(env_name) for _ in range(config.num_envs)])
     
     max_episode_steps = gym.make(config.env).spec.max_episode_steps
 
@@ -148,16 +175,25 @@ def main(unused_arg):
     train_env.seed(config.seed)
     eval_env.seed(config.seed)
 
+    if config.use_nni:
+        nni_config = nni.get_next_parameter()
+        config.learning_rate = nni_config.get("learning_rate", config.learning_rate)
+        config.epsilon_steps = nni_config.get("epsilon_steps", config.epsilon_steps)
+        config.buffer_size = nni_config.get("buffer_size", config.buffer_size)
+
     agent = DQN(
         network=mlp_network(config.hidden_units, train_env.action_space),
         env=train_env,
         learning_rate=config.learning_rate,
+        discount_factor=config.discount_factor,
+        epsilon_schedule=optax.polynomial_schedule(init_value=0.9, end_value=0.05, power=1., transition_steps=config.epsilon_steps),
+        target_update_interval=config.target_update_interval,
     )
 
     buffer = TransitionReplayPool(
         train_env.observation_space, 
         train_env.action_space,
-        max_size=config.replay_capacity,
+        max_size=config.buffer_size,
         extra_fields={
             "action": {
                 "shape": train_env.action_space.shape,
