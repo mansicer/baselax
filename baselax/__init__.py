@@ -1,1 +1,1 @@
-from baselax.agent import DQN
+from baselax.agents import DQN

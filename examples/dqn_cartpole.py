@@ -13,7 +13,7 @@ from packaging import version
 from stable_baselines3.common.env_util import DummyVecEnv, SubprocVecEnv
 from UtilsRL.rl.buffer import TransitionReplayPool
 
-from baselax.agent.dqn import DQN
+from baselax.agents import DQN
 from baselax.utils.seeding import global_seed
 from baselax.utils.network import mlp_network
 
