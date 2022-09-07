@@ -7,7 +7,7 @@ import rlax
 
 from collections import namedtuple
 from typing import Callable, Mapping, Tuple, Union
-from .agent import BaseAgent
+from baselax.agents import BaseAgent
 
 
 class DQN(BaseAgent):

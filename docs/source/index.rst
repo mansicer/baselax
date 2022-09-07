@@ -20,5 +20,5 @@ Contents
    :maxdepth: 2
    :caption: APIs
 
-   apis/baselax.agent
+   apis/baselax.agents
    apis/baselax.utils
