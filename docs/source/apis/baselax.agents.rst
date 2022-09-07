@@ -11,7 +11,7 @@ baselax.agents.BaseAgent
    :show-inheritance:
 
 baselax.agents.DQN
------------------
+------------------
 
 .. autoclass:: baselax.agents.DQN
    :members:
