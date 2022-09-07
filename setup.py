@@ -17,7 +17,7 @@ requires = [
     "rlax",
     "stable-baselines3",
     "UtilsRL",
-    "dm-haiku @ git+https://github.com/deepmind/dm-haiku.git",
+    "dm-haiku",
 ]
 
 setup(
