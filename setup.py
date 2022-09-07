@@ -4,7 +4,7 @@ from setuptools import setup, find_namespace_packages
 BASELAX_VERSION = '0.0.1'
 
 extras = {
-    "sb3": ["stable-baselines3"],
+    "nni": ["nni"],
 }
 
 extras["all"] = list(
