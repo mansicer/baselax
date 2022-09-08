@@ -14,8 +14,11 @@ Baselax (**Basel**ines + j**ax**) provides stable-baselines-style implementation
 Install via `pip`:
 
 ```bash
-pip install -r requirements.txt
-pip install git+https://github.com/deepmind/dm-haiku
+pip install -e .
+
+# optional
+pip install -e .["sb3"]
+pip install -e .["all"]
 ```
 
 Additnionally, you can download and install `envpool` wheels from [GitHub releases](https://github.com/sail-sg/envpool/releases) for better sample efficiency.

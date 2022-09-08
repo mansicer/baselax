@@ -1,7 +1,11 @@
 import itertools
 from setuptools import setup, find_namespace_packages
 
-BASELAX_VERSION = '0.0.1'
+with open("baselax/version.txt", "r", encoding="utf-8") as f:
+    BASELAX_VERSION = f.read().strip()
+
+with open("requirements.txt", "r", encoding="utf-8") as f:
+    requires = f.read().splitlines()
 
 extras = {
     "sb3": ["stable-baselines3"],
@@ -10,14 +14,6 @@ extras = {
 extras["all"] = list(
     set(itertools.chain.from_iterable(map(lambda group: extras[group], extras.keys())))
 )
-
-requires = [
-    "gym",
-    "optax",
-    "rlax",
-    "UtilsRL",
-    "dm-haiku @ git+https://github.com/deepmind/dm-haiku.git",
-]
 
 setup(
     name="baselax",
