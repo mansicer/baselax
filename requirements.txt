@@ -1,6 +1,6 @@
 gym
-dm-haiku @ git+https://github.com/deepmind/dm-haiku
+dm-haiku
 optax
 rlax
-UtilsRL
 stable-baselines3
+UtilsRL

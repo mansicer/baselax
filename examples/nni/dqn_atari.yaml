@@ -1,0 +1,36 @@
+# An optional name to help you distinguish experiments.
+experimentName: DQN-Atari-Pong
+
+# Hyper-parameter search space can either be configured here or in a seperate file.
+# "config.yml" shows how to specify a seperate search space file.
+# The common schema of search space is documented here:
+#   https://nni.readthedocs.io/en/stable/Tutorial/SearchSpaceSpec.html
+searchSpace:
+  epsilon_steps:
+    _type: qloguniform
+    _value: [1000, 1000000, 1]
+  target_update_interval:
+    _type: randint
+    _value: [10, 1001]
+  
+
+# The command to launch a trial. NOTE: change "python3" to "python" if you are using Windows.
+trialCommand: "python dqn_atari.py --env=Pong-v5 --use_envpool=True --num_envs=32 --eval_episodes=32 --use_nni=True"
+# The path of trial code. By default it's ".", which means the same directory of this config file.
+trialCodeDirectory: "/your/path/to/baselax/examples"
+
+trialConcurrency: 1             # How many trials to run concurrently.
+maxTrialNumber: 50              # Generate at most 10 trials.
+
+tuner:                          # Configure the tuning algorithm.
+  name: TPE                     # Supported algorithms: TPE, Random, Anneal, Evolution, GridSearch, GPTuner, PBTTuner, etc.
+                                #   Full list:  https://nni.readthedocs.io/en/latest/Tuner/BuiltinTuner.html
+  classArgs:                    # Algorithm specific arguments. See the tuner's doc for details.
+    optimize_mode: maximize     #   "minimize" or "maximize"
+
+# Configure the training platform.
+# Supported platforms: local, remote, openpai, aml, kubeflow, kubernetes, adl.
+trainingService:
+  platform: local
+  useActiveGpu: true            # NOTE: Use "true" if you are using an OS with graphical interface (e.g. Windows 10, Ubuntu desktop)
+                                #   Reason and details:  https://nni.readthedocs.io/en/latest/reference/experiment_config.html#useactivegpu

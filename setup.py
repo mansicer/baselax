@@ -1,10 +1,16 @@
+import re
 import itertools
 from setuptools import setup, find_namespace_packages
 
-BASELAX_VERSION = '0.0.1'
+with open("baselax/version.py") as file:
+    full_version = file.read()
+    assert (
+        re.match(r'VERSION = "\d\.\d+\.\d+"\n', full_version).group(0) == full_version
+    ), f"Unexpected version: {full_version}"
+    BASELAX_VERSION = re.search(r"\d\.\d+\.\d+", full_version).group(0)
 
 extras = {
-    "sb3": ["stable-baselines3"],
+    "nni": ["nni"],
 }
 
 extras["all"] = list(
@@ -15,8 +21,9 @@ requires = [
     "gym",
     "optax",
     "rlax",
+    "stable-baselines3",
     "UtilsRL",
-    "dm-haiku @ git+https://github.com/deepmind/dm-haiku.git",
+    "dm-haiku",
 ]
 
 setup(
