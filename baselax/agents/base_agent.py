@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import optax
 
 from typing import Callable, Mapping, Tuple, Union
-from abc import ABC
+from abc import ABC, abstractmethod
 from collections import namedtuple
 
 
@@ -72,6 +72,7 @@ class BaseAgent(ABC):
         opt_state = self._optimizer.init(params.policy)
         return self.OptimState(count=0, opt_state=opt_state)
 
+    @abstractmethod
     def predict(
         self, 
         params: Params, 
@@ -95,6 +96,7 @@ class BaseAgent(ABC):
         """
         raise NotImplementedError()
 
+    @abstractmethod
     def update(
         self, 
         params: Params, 
